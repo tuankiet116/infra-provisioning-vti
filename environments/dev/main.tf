@@ -1,4 +1,6 @@
 module "dev" {
   source = "../../modules/networking"
-  vti_id = "DE000079"
+
+  vti_id      = var.vti_id
+  environment = var.environment
 }
