@@ -2,7 +2,7 @@ module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "6.0.1"
 
-  name = "${var.vti_id}-vpc"
+  name = "${var.vti_id}-vpc-${var.environment}"
   cidr = "10.0.0.0/16"
 
   azs             = ["ap-southeast-1a", "ap-southeast-1b", "ap-southeast-1c"]
