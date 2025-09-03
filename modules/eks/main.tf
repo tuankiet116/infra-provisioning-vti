@@ -17,12 +17,18 @@ module "eks" {
   }
 
   eks_managed_node_groups = {
-    general = {
+    default = {
+      create         = true
       min_size       = 1
       max_size       = 3
-      desired_size   = 2
+      desired_size   = 1
       instance_types = ["t3.medium"]
       capacity_type  = "ON_DEMAND"
+      partition      = "aws"          # thêm tránh count logic fail
+      account_id     = var.account_id # tránh unknown
+      tags = {
+        Name = "${var.vti_id}-node-${var.environment}"
+      }
     }
   }
 

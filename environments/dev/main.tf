@@ -1,3 +1,5 @@
+data "aws_caller_identity" "current" {}
+
 module "networking" {
   source = "../../modules/networking"
 
@@ -12,6 +14,7 @@ module "eks" {
   environment = var.environment
   vpc_id      = module.networking.vpc_id
   subnet_ids  = module.networking.private_subnets
+  account_id  = data.aws_caller_identity.current.account_id
 
   depends_on = [module.networking]
 }

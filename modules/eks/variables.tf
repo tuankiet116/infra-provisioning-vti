@@ -18,3 +18,9 @@ variable "subnet_ids" {
     description = "A list of subnet IDs where the EKS cluster nodes will be deployed."
     type        = list(string)
 }
+
+variable "account_id" {
+  type        = string
+  description = "AWS account ID for IRSA"
+  default     = ""
+}
