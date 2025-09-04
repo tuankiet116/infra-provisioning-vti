@@ -24,3 +24,9 @@ variable "account_id" {
   description = "AWS account ID for IRSA"
   default     = ""
 }
+
+variable "create_node_groups" {
+  type        = bool
+  description = "Whether to create EKS managed node groups"
+  default     = true
+}

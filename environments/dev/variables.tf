@@ -8,3 +8,9 @@ variable "environment" {
     type        = string
     default     = "dev"
 }
+
+variable "create_node_groups" {
+  type        = bool
+  description = "Whether to create EKS managed node groups"
+  default     = true
+}

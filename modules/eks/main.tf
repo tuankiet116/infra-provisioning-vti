@@ -1,40 +1,153 @@
-module "eks" {
-  source  = "terraform-aws-modules/eks/aws"
-  version = "~> 21.0"
+# Data sources
+data "aws_caller_identity" "current" {}
+data "aws_partition" "current" {}
 
-  name               = "${var.vti_id}-eks-${var.environment}"
-  kubernetes_version = "1.33"
+# IAM role for EKS cluster
+resource "aws_iam_role" "eks_cluster" {
+  name = "${var.vti_id}-eks-cluster-role-${var.environment}"
 
-  # Optional
-  endpoint_public_access = true
-
-  # Optional: Adds the current caller identity as an administrator via cluster access entry
-  enable_cluster_creator_admin_permissions = true
-
-  compute_config = {
-    enabled    = true
-    node_pools = ["general-purpose"]
-  }
-
-  eks_managed_node_groups = {
-    default = {
-      create         = true
-      min_size       = 1
-      max_size       = 3
-      desired_size   = 1
-      instance_types = ["t3.medium"]
-      capacity_type  = "ON_DEMAND"
-      partition      = "aws"          # thêm tránh count logic fail
-      account_id     = var.account_id # tránh unknown
-      tags = {
-        Name = "${var.vti_id}-node-${var.environment}"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "eks.amazonaws.com"
+        }
       }
-    }
+    ]
+  })
+
+  tags = {
+    Environment = var.environment
+    Terraform   = "true"
+  }
+}
+
+# Attach required policies to EKS cluster role
+resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+  role       = aws_iam_role.eks_cluster.name
+}
+
+# IAM role for EKS node group
+resource "aws_iam_role" "eks_node_group" {
+  count = var.create_node_groups ? 1 : 0
+  name  = "${var.vti_id}-eks-node-role-${var.environment}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Environment = var.environment
+    Terraform   = "true"
+  }
+}
+
+# Attach required policies to node group role
+resource "aws_iam_role_policy_attachment" "eks_worker_node_policy" {
+  count      = var.create_node_groups ? 1 : 0
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+  role       = aws_iam_role.eks_node_group[0].name
+}
+
+resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
+  count      = var.create_node_groups ? 1 : 0
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+  role       = aws_iam_role.eks_node_group[0].name
+}
+
+resource "aws_iam_role_policy_attachment" "eks_container_registry_policy" {
+  count      = var.create_node_groups ? 1 : 0
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+  role       = aws_iam_role.eks_node_group[0].name
+}
+
+# Security group for EKS cluster
+resource "aws_security_group" "eks_cluster" {
+  name_prefix = "${var.vti_id}-eks-cluster-${var.environment}"
+  vpc_id      = var.vpc_id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
-  vpc_id     = var.vpc_id
-  subnet_ids = var.subnet_ids
   tags = {
+    Name        = "${var.vti_id}-eks-cluster-sg-${var.environment}"
+    Environment = var.environment
+    Terraform   = "true"
+  }
+}
+
+# EKS Cluster
+resource "aws_eks_cluster" "main" {
+  name     = "${var.vti_id}-eks-${var.environment}"
+  role_arn = aws_iam_role.eks_cluster.arn
+  version  = "1.33"
+
+  vpc_config {
+    subnet_ids              = var.subnet_ids
+    endpoint_private_access = true
+    endpoint_public_access  = true
+    security_group_ids      = [aws_security_group.eks_cluster.id]
+  }
+
+  # Enable logging
+  enabled_cluster_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+
+  depends_on = [
+    aws_iam_role_policy_attachment.eks_cluster_policy,
+  ]
+
+  tags = {
+    Environment = var.environment
+    Terraform   = "true"
+  }
+}
+
+# EKS Node Group
+resource "aws_eks_node_group" "main" {
+  count           = var.create_node_groups ? 1 : 0
+  cluster_name    = aws_eks_cluster.main.name
+  node_group_name = "${var.vti_id}-node-group-${var.environment}"
+  node_role_arn   = aws_iam_role.eks_node_group[0].arn
+  subnet_ids      = var.subnet_ids
+
+  capacity_type  = "ON_DEMAND"
+  instance_types = ["t3.medium"]
+
+  scaling_config {
+    desired_size = 1
+    max_size     = 3
+    min_size     = 1
+  }
+
+  update_config {
+    max_unavailable = 1
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.eks_worker_node_policy,
+    aws_iam_role_policy_attachment.eks_cni_policy,
+    aws_iam_role_policy_attachment.eks_container_registry_policy,
+  ]
+
+  tags = {
+    Name        = "${var.vti_id}-node-${var.environment}"
     Environment = var.environment
     Terraform   = "true"
   }
