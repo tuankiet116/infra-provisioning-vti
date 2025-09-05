@@ -13,7 +13,7 @@ output "repository_registry_id" {
   value       = module.ecr.repository_registry_id
 }
 
-output "repository_uri" {
-  description = "The URI of the repository (in the form `aws_account_id.dkr.ecr.region.amazonaws.com/repositoryName`)"
-  value       = module.ecr.repository_uri
+output "repository_name" {
+  description = "Name of the repository"
+  value       = module.ecr.repository_name
 }
