@@ -5,7 +5,7 @@ terraform {
       version = ">= 6.9.0"
     }
   }
-  
+
   required_version = ">= 1.5.0"
 }
 
@@ -110,54 +110,54 @@ resource "aws_iam_policy" "terraform_permissions" {
         Action = [
           # EC2 permissions
           "ec2:*",
-          
+
           # EKS permissions
           "eks:*",
-          
+
           # IAM permissions
           "iam:*",
-          
+
           # ECR permissions
           "ecr:*",
-          
+
           # VPC permissions
           "vpc:*",
-          
+
           # S3 permissions (for state backend)
           "s3:GetObject",
           "s3:PutObject",
           "s3:DeleteObject",
           "s3:ListBucket",
-          
+
           # DynamoDB permissions (for state locking)
           "dynamodb:GetItem",
           "dynamodb:PutItem",
           "dynamodb:DeleteItem",
           "dynamodb:UpdateItem",
-          
+
           # CloudFormation permissions
           "cloudformation:*",
-          
+
           # Auto Scaling permissions
           "autoscaling:*",
-          
+
           # Application Load Balancer permissions
           "elasticloadbalancing:*",
-          
+
           # Route53 permissions
           "route53:*",
-          
+
           # CloudWatch permissions
           "cloudwatch:*",
           "logs:*",
-          
+
           # KMS permissions
           "kms:Decrypt",
           "kms:DescribeKey",
           "kms:Encrypt",
           "kms:GenerateDataKey",
           "kms:ReEncrypt*",
-          
+
           # STS permissions
           "sts:GetCallerIdentity",
           "sts:AssumeRole"

@@ -6,4 +6,4 @@ output "github_actions_role_arn" {
 output "github_actions_role_name" {
   description = "Name of the GitHub Actions role"
   value       = aws_iam_role.github_actions.name
-} 
+}
