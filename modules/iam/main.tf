@@ -30,7 +30,3 @@ resource "aws_iam_role_policy_attachment" "eks_fullaccess" {
   role       = aws_iam_role.github_actions.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
-
-output "github_actions_role_arn" {
-  value = aws_iam_role.github_actions.arn
-}
