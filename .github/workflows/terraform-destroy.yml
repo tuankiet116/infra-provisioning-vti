@@ -1,0 +1,143 @@
+name: Terraform Destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to destroy'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+      confirmation:
+        description: 'Type "destroy" to confirm'
+        required: true
+        type: string
+
+env:
+  TF_VERSION: '1.5.0'
+  AWS_REGION: 'ap-southeast-2'
+
+permissions:
+  id-token: write   # This is required for requesting the JWT
+  contents: read    # This is required for actions/checkout
+  issues: write     # This is required for manual approval
+
+jobs:
+  validate-input:
+    name: Validate Destroy Confirmation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check confirmation
+        if: github.event.inputs.confirmation != 'destroy'
+        run: |
+          echo "❌ Confirmation failed. You must type 'destroy' to confirm."
+          exit 1
+
+      - name: Confirmation successful
+        run: |
+          echo "✅ Destroy confirmation validated for environment: ${{ github.event.inputs.environment }}"
+
+  terraform-destroy:
+    name: Terraform Destroy (${{ github.event.inputs.environment }})
+    runs-on: ubuntu-latest
+    needs: validate-input
+    environment: ${{ github.event.inputs.environment }}-destroy
+    defaults:
+      run:
+        working-directory: ./environments/${{ github.event.inputs.environment }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials (Dev)
+        if: github.event.inputs.environment == 'dev'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_DEV }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-TerraformDevDestroy
+
+      - name: Configure AWS credentials (Prod)
+        if: github.event.inputs.environment == 'prod'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_PROD }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-TerraformProdDestroy
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan Destroy
+        run: |
+          terraform plan -destroy -out=destroy-plan
+          terraform show -no-color destroy-plan > destroy-plan-output.txt
+
+      - name: Show Destroy Plan
+        run: |
+          echo "## 🚨 Terraform Destroy Plan for ${{ github.event.inputs.environment }} environment"
+          echo ""
+          cat destroy-plan-output.txt
+
+      - name: Wait for manual approval
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.TOKEN }}
+          approvers: ${{ github.actor }}
+          minimum-approvals: 1
+          issue-title: "🚨 Approve Terraform Destroy for ${{ github.event.inputs.environment }}"
+          issue-body: |
+            **Environment:** ${{ github.event.inputs.environment }}
+            **Triggered by:** @${{ github.actor }}
+            **Workflow:** ${{ github.workflow }}
+            **Run ID:** ${{ github.run_id }}
+            
+            ## ⚠️ WARNING ⚠️
+            This action will **DESTROY** all Terraform-managed resources in the **${{ github.event.inputs.environment }}** environment.
+            
+            ### Resources to be destroyed:
+            ```
+            terraform plan -destroy output will be shown in the workflow logs
+            ```
+            
+            **This action is IRREVERSIBLE!**
+            
+            Please review the destroy plan carefully before approving.
+            
+            ---
+            
+            👍 **Approve** this issue to proceed with the destruction.
+            👎 **Close** this issue to cancel the operation.
+
+      - name: Terraform Destroy
+        run: terraform apply -auto-approve destroy-plan
+
+      - name: Post-destroy verification
+        run: |
+          echo "🎯 Terraform destroy completed for ${{ github.event.inputs.environment }}"
+          echo "Please verify that all resources have been properly destroyed in the AWS console."
+
+  notify-completion:
+    name: Notify Destroy Completion
+    runs-on: ubuntu-latest
+    needs: terraform-destroy
+    if: always()
+    steps:
+      - name: Notify success
+        if: needs.terraform-destroy.result == 'success'
+        run: |
+          echo "✅ Terraform destroy completed successfully for ${{ github.event.inputs.environment }}"
+
+      - name: Notify failure
+        if: needs.terraform-destroy.result == 'failure'
+        run: |
+          echo "❌ Terraform destroy failed for ${{ github.event.inputs.environment }}"
+          exit 1

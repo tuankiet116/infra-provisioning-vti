@@ -1,3 +1,8 @@
+# Data source để lấy OIDC provider đã tạo từ shared-resources
+data "aws_iam_openid_connect_provider" "github" {
+  url = "https://token.actions.githubusercontent.com"
+}
+
 resource "aws_iam_role" "github_actions" {
   name = "${var.vti_id}-${var.environment}-github-actions"
 
@@ -7,10 +12,13 @@ resource "aws_iam_role" "github_actions" {
       {
         Effect = "Allow"
         Principal = {
-          Federated = "arn:aws:iam::${var.account_id}:oidc-provider/token.actions.githubusercontent.com"
+          Federated = data.aws_iam_openid_connect_provider.github.arn
         }
         Action = "sts:AssumeRoleWithWebIdentity"
         Condition = {
+          StringEquals = {
+            "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+          }
           StringLike = {
             "token.actions.githubusercontent.com:sub" = "repo:${var.github_org}/${var.github_repo}:*"
           }
@@ -18,6 +26,13 @@ resource "aws_iam_role" "github_actions" {
       }
     ]
   })
+
+  tags = {
+    Name        = "${var.vti_id}-${var.environment}-github-actions"
+    Environment = var.environment
+    ManagedBy   = "terraform"
+    Purpose     = "github-actions-ecr-access"
+  }
 }
 
 # Gán quyền cho ECR + EKS

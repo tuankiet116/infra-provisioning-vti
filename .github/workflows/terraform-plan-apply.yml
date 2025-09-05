@@ -1,0 +1,259 @@
+name: Terraform Plan & Apply
+
+on:
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'environments/**'
+      - 'modules/**'
+      - '.github/workflows/terraform-plan-apply.yml'
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'environments/**'
+      - 'modules/**'
+      - '.github/workflows/terraform-plan-apply.yml'
+
+env:
+  TF_VERSION: '1.5.0'
+  AWS_REGION: 'ap-southeast-2'
+
+permissions:
+  id-token: write   # This is required for requesting the JWT
+  contents: read    # This is required for actions/checkout
+  pull-requests: write  # This is required for commenting on PRs
+
+jobs:
+  detect-changes:
+    name: Detect Changed Environments
+    runs-on: ubuntu-latest
+    outputs:
+      dev-changed: ${{ steps.changes.outputs.dev }}
+      prod-changed: ${{ steps.changes.outputs.prod }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changes
+        uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            dev:
+              - 'environments/dev/**'
+              - 'modules/**'
+            prod:
+              - 'environments/prod/**'
+              - 'modules/**'
+
+  terraform-plan-dev:
+    name: Terraform Plan (Dev)
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.dev-changed == 'true'
+    environment: dev
+    defaults:
+      run:
+        working-directory: ./environments/dev
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_DEV }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-TerraformDev
+
+      - name: Terraform Format Check
+        run: terraform fmt -check
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan -no-color -out=tfplan
+          terraform show -no-color tfplan > plan-output.txt
+        continue-on-error: true
+
+      - name: Comment Plan on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('./environments/dev/plan-output.txt', 'utf8');
+            const maxLength = 65000;
+            const truncatedPlan = plan.length > maxLength ? 
+              plan.substring(0, maxLength) + '\n... (truncated)' : 
+              plan;
+            
+            const output = `## Terraform Plan (Dev Environment)
+            
+            \`\`\`
+            ${truncatedPlan}
+            \`\`\`
+            
+            *Plan generated for commit: ${{ github.sha }}*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
+
+      - name: Terraform Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+
+  terraform-plan-prod:
+    name: Terraform Plan (Prod)
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.prod-changed == 'true'
+    environment: prod
+    defaults:
+      run:
+        working-directory: ./environments/prod
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_PROD }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-TerraformProd
+
+      - name: Terraform Format Check
+        run: terraform fmt -check
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan -no-color -out=tfplan
+          terraform show -no-color tfplan > plan-output.txt
+        continue-on-error: true
+
+      - name: Comment Plan on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('./environments/prod/plan-output.txt', 'utf8');
+            const maxLength = 65000;
+            const truncatedPlan = plan.length > maxLength ? 
+              plan.substring(0, maxLength) + '\n... (truncated)' : 
+              plan;
+            
+            const output = `## Terraform Plan (Prod Environment)
+            
+            \`\`\`
+            ${truncatedPlan}
+            \`\`\`
+            
+            *Plan generated for commit: ${{ github.sha }}*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
+
+      - name: Terraform Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+
+  terraform-apply-dev:
+    name: Terraform Apply (Dev)
+    runs-on: ubuntu-latest
+    needs: [detect-changes, terraform-plan-dev]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    environment: dev
+    defaults:
+      run:
+        working-directory: ./environments/dev
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_DEV }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-TerraformDevApply
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+
+  terraform-apply-prod:
+    name: Terraform Apply (Prod)
+    runs-on: ubuntu-latest
+    needs: [detect-changes, terraform-plan-prod]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    environment: prod
+    defaults:
+      run:
+        working-directory: ./environments/prod
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_PROD }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-TerraformProdApply
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
