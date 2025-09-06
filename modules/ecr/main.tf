@@ -1,7 +1,7 @@
 module "ecr" {
   source = "terraform-aws-modules/ecr/aws"
 
-  repository_name = "${var.vti_id}-ecr-repo-${var.environment}"
+  repository_name = "${lower(var.vti_id)}-ecr-repo-${var.environment}"
 
   repository_read_write_access_arns = var.read_write_arns
   repository_image_scan_on_push     = true
