@@ -187,31 +187,28 @@ resource "local_file" "aws_auth" {
   filename = "${path.module}/aws-auth-${var.environment}.yaml"
 }
 
-# Output instructions for applying aws-auth ConfigMap
-resource "local_file" "apply_instructions" {
+# Apply aws-auth ConfigMap and RBAC to EKS cluster via GitHub Actions
+resource "null_resource" "aws_auth" {
   count = var.github_actions_deploy_role_arn != "" ? 1 : 0
   
-  content = <<-EOT
-# Instructions to apply aws-auth ConfigMap to EKS cluster
-# Run this from a GitHub Actions workflow with terraform_admin role
+  triggers = {
+    cluster_name = aws_eks_cluster.main.id
+    config_hash  = local_file.aws_auth[0].content_md5
+  }
 
-# 1. Update kubeconfig
-aws eks update-kubeconfig --region ${data.aws_region.current.name} --name ${aws_eks_cluster.main.id}
+  provisioner "local-exec" {
+    command = <<-EOT
+      # Apply aws-auth ConfigMap using current credentials (terraform_admin role in GitHub Actions)
+      aws eks update-kubeconfig --region ${data.aws_region.current.name} --name ${aws_eks_cluster.main.id}
+      kubectl apply -f ${local_file.aws_auth[0].filename} --validate=false
+      kubectl apply -f ${path.module}/github-actions-rbac.yaml --validate=false
+      
+      # Verify setup
+      echo "Verifying aws-auth ConfigMap..."
+      kubectl get configmap aws-auth -n kube-system
+      echo "Application team can now use role: ${var.github_actions_deploy_role_arn}"
+    EOT
+  }
 
-# 2. Apply aws-auth ConfigMap
-kubectl apply -f ${local_file.aws_auth[0].filename}
-
-# 3. Apply GitHub Actions RBAC
-kubectl apply -f ${path.module}/github-actions-rbac.yaml
-
-# 4. Verify setup
-kubectl get configmap aws-auth -n kube-system -o yaml
-kubectl get clusterrole github-actions-deploy
-kubectl get clusterrolebinding github-actions-deploy
-
-# After this, application team can use role:
-# ${var.github_actions_deploy_role_arn}
-EOT
-  
-  filename = "${path.module}/apply-aws-auth-${var.environment}.sh"
+  depends_on = [aws_eks_cluster.main, local_file.aws_auth]
 }
