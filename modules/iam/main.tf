@@ -20,7 +20,10 @@ resource "aws_iam_role" "github_actions" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:${var.github_org}/${var.github_repo}:*"
+            "token.actions.githubusercontent.com:sub" = concat(
+              ["repo:${var.github_org}/${var.github_repo}:*"],
+              [for repo in var.additional_trusted_repos : "repo:${var.github_org}/${repo}:*"]
+            )
           }
         }
       }

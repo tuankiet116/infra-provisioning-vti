@@ -21,3 +21,9 @@ variable "github_repo" {
   type        = string
   description = "Tên GitHub repo"
 }
+
+variable "additional_trusted_repos" {
+  type        = list(string)
+  description = "Danh sách các repos khác được trust bởi IAM role"
+  default     = []
+}

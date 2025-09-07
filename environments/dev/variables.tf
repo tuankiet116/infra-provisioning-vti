@@ -24,3 +24,9 @@ variable "github_repo" {
   type        = string
   description = "Github repo name"
 }
+
+variable "additional_trusted_repos" {
+  type        = list(string)
+  description = "Additional repositories trusted by IAM role"
+  default     = []
+}

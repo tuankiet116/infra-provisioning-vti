@@ -20,12 +20,13 @@ module "eks" {
 }
 
 module "iam" {
-  source      = "../../modules/iam"
-  vti_id      = var.vti_id
-  environment = var.environment
-  account_id  = data.aws_caller_identity.current.account_id
-  github_org  = var.github_org
-  github_repo = var.github_repo
+  source                   = "../../modules/iam"
+  vti_id                   = var.vti_id
+  environment              = var.environment
+  account_id               = data.aws_caller_identity.current.account_id
+  github_org               = var.github_org
+  github_repo              = var.github_repo
+  additional_trusted_repos = var.additional_trusted_repos
 }
 
 module "ecr" {
