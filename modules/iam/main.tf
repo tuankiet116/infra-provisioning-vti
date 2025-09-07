@@ -90,14 +90,15 @@ resource "aws_iam_role_policy" "iam_limited_access" {
           "iam:TagPolicy",
           "iam:UntagPolicy",
           "iam:UpdateAssumeRolePolicy",
-          "iam:UpdateAssumeRolePolicy"
+          "iam:PutRolePolicy"
         ]
         Resource = [
           "arn:aws:iam::*:role/*eks*",
           "arn:aws:iam::*:role/*EKS*",
           "arn:aws:iam::*:role/*nodegroup*",
           "arn:aws:iam::*:role/*external-secrets*",
-          "arn:aws:iam::*:policy/*external-secrets*"
+          "arn:aws:iam::*:policy/*external-secrets*",
+          "arn:aws:iam::*:role/*github-actions*"
         ]
       }
     ]
