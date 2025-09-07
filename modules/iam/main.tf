@@ -66,44 +66,45 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_readonly" {
 }
 
 # Add limited IAM permissions for role management
-resource "aws_iam_role_policy" "iam_limited_access" {
-  name = "${var.vti_id}-${var.environment}-iam-limited-access"
-  role = aws_iam_role.github_actions.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "iam:CreateRole",
-          "iam:DeleteRole",
-          "iam:AttachRolePolicy",
-          "iam:DetachRolePolicy",
-          "iam:CreatePolicy",
-          "iam:DeletePolicy",
-          "iam:GetPolicy",
-          "iam:GetPolicyVersion",
-          "iam:PassRole",
-          "iam:TagRole",
-          "iam:UntagRole",
-          "iam:TagPolicy",
-          "iam:UntagPolicy",
-          "iam:UpdateAssumeRolePolicy",
-          "iam:PutRolePolicy"
-        ]
-        Resource = [
-          "arn:aws:iam::*:role/*eks*",
-          "arn:aws:iam::*:role/*EKS*",
-          "arn:aws:iam::*:role/*nodegroup*",
-          "arn:aws:iam::*:role/*external-secrets*",
-          "arn:aws:iam::*:policy/*external-secrets*",
-          "arn:aws:iam::*:role/*github-actions*"
-        ]
-      }
-    ]
-  })
-}
+# Temporarily commented out to avoid chicken-and-egg problem
+# resource "aws_iam_role_policy" "iam_limited_access" {
+#   name = "${var.vti_id}-${var.environment}-iam-limited-access"
+#   role = aws_iam_role.github_actions.id
+#
+#   policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       {
+#         Effect = "Allow"
+#         Action = [
+#           "iam:CreateRole",
+#           "iam:DeleteRole",
+#           "iam:AttachRolePolicy",
+#           "iam:DetachRolePolicy",
+#           "iam:CreatePolicy",
+#           "iam:DeletePolicy",
+#           "iam:GetPolicy",
+#           "iam:GetPolicyVersion",
+#           "iam:PassRole",
+#           "iam:TagRole",
+#           "iam:UntagRole",
+#           "iam:TagPolicy",
+#           "iam:UntagPolicy",
+#           "iam:UpdateAssumeRolePolicy",
+#           "iam:PutRolePolicy"
+#         ]
+#         Resource = [
+#           "arn:aws:iam::*:role/*eks*",
+#           "arn:aws:iam::*:role/*EKS*",
+#           "arn:aws:iam::*:role/*nodegroup*",
+#           "arn:aws:iam::*:role/*external-secrets*",
+#           "arn:aws:iam::*:policy/*external-secrets*",
+#           "arn:aws:iam::*:role/*github-actions*"
+#         ]
+#       }
+#     ]
+#   })
+# }
 
 # Custom policy for IAM and additional EKS permissions
 resource "aws_iam_role_policy" "terraform_operations" {
