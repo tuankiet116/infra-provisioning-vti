@@ -73,6 +73,7 @@ jobs:
           echo "Ref: ${{ github.ref }}"
           echo "Actor: ${{ github.actor }}"
           echo "Event: ${{ github.event_name }}"
+          echo "Role ARN: ${{ secrets.TERRAFORM_ADMIN_ROLE_ARN_DEV }}"
 
       - name: Configure AWS credentials (Terraform Admin)
         uses: aws-actions/configure-aws-credentials@v4
