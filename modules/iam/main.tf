@@ -77,14 +77,20 @@ resource "aws_iam_role_policy" "iam_limited_access" {
           "iam:DeleteRole",
           "iam:AttachRolePolicy",
           "iam:DetachRolePolicy",
+          "iam:CreatePolicy",
+          "iam:DeletePolicy",
           "iam:PassRole",
           "iam:TagRole",
-          "iam:UntagRole"
+          "iam:UntagRole",
+          "iam:TagPolicy",
+          "iam:UntagPolicy"
         ]
         Resource = [
           "arn:aws:iam::*:role/*eks*",
           "arn:aws:iam::*:role/*EKS*",
-          "arn:aws:iam::*:role/*nodegroup*"
+          "arn:aws:iam::*:role/*nodegroup*",
+          "arn:aws:iam::*:role/*external-secrets*",
+          "arn:aws:iam::*:policy/*external-secrets*"
         ]
       }
     ]
@@ -104,6 +110,10 @@ resource "aws_iam_role_policy" "terraform_operations" {
         Action = [
           "iam:ListOpenIDConnectProviders",
           "iam:GetOpenIDConnectProvider",
+          "iam:CreateOpenIDConnectProvider",
+          "iam:DeleteOpenIDConnectProvider",
+          "iam:TagOpenIDConnectProvider",
+          "iam:UntagOpenIDConnectProvider",
           "iam:GetRole",
           "iam:GetRolePolicy",
           "iam:ListAttachedRolePolicies",
@@ -113,7 +123,16 @@ resource "aws_iam_role_policy" "terraform_operations" {
           "logs:DescribeLogStreams",
           "logs:CreateLogGroup",
           "logs:DeleteLogGroup",
-          "ecr:*"
+          "ecr:*",
+          "secretsmanager:CreateSecret",
+          "secretsmanager:DeleteSecret",
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:PutSecretValue",
+          "secretsmanager:UpdateSecret",
+          "secretsmanager:TagResource",
+          "secretsmanager:UntagResource",
+          "secretsmanager:ListSecrets"
         ]
         Resource = "*"
       }
