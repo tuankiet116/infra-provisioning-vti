@@ -18,3 +18,19 @@ output "eks_cluster_name" {
   description = "EKS Cluster name"
   value       = module.eks.cluster_name
 }
+
+# External Secrets outputs
+output "external_secrets_role_arn" {
+  description = "ARN of the External Secrets Operator IAM role"
+  value       = module.external_secrets.external_secrets_role_arn
+}
+
+output "backend_secret_name" {
+  description = "Name of the backend secrets in AWS Secrets Manager"
+  value       = module.external_secrets.backend_secret_name
+}
+
+output "frontend_secret_name" {
+  description = "Name of the frontend secrets in AWS Secrets Manager"
+  value       = module.external_secrets.frontend_secret_name
+}

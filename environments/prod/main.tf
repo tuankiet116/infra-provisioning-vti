@@ -36,3 +36,16 @@ module "ecr" {
     module.iam.github_actions_role_arn
   ]
 }
+
+module "external_secrets" {
+  source = "../../modules/external-secrets"
+
+  vti_id                = var.vti_id
+  environment           = var.environment
+  aws_region            = "ap-southeast-2"
+  eks_cluster_name      = module.eks.cluster_name
+  eks_oidc_provider_arn = module.eks.oidc_provider_arn
+  eks_oidc_provider_url = module.eks.oidc_provider_url
+
+  depends_on = [module.eks]
+}

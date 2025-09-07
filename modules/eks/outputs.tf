@@ -43,3 +43,14 @@ output "node_group_status" {
   description = "EKS node group status"
   value       = var.create_node_groups ? aws_eks_node_group.main[0].status : null
 }
+
+# OIDC Provider outputs for External Secrets Operator
+output "oidc_provider_arn" {
+  description = "EKS OIDC provider ARN"
+  value       = aws_iam_openid_connect_provider.eks.arn
+}
+
+output "oidc_provider_url" {
+  description = "EKS OIDC provider URL"
+  value       = aws_eks_cluster.main.identity[0].oidc[0].issuer
+}
