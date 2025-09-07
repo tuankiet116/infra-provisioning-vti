@@ -88,7 +88,9 @@ resource "aws_iam_role_policy" "iam_limited_access" {
           "iam:TagRole",
           "iam:UntagRole",
           "iam:TagPolicy",
-          "iam:UntagPolicy"
+          "iam:UntagPolicy",
+          "iam:UpdateAssumeRolePolicy",
+          "iam:UpdateAssumeRolePolicy"
         ]
         Resource = [
           "arn:aws:iam::*:role/*eks*",
