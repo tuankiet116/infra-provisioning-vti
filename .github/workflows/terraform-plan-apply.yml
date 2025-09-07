@@ -67,6 +67,13 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
+      - name: Debug OIDC Context
+        run: |
+          echo "Repository: ${{ github.repository }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "Event: ${{ github.event_name }}"
+
       - name: Configure AWS credentials (Terraform Admin)
         uses: aws-actions/configure-aws-credentials@v4
         with:
