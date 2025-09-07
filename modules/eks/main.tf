@@ -177,20 +177,20 @@ data "aws_region" "current" {}
 # Create aws-auth ConfigMap file for EKS cluster
 resource "local_file" "aws_auth" {
   count = var.github_actions_deploy_role_arn != "" ? 1 : 0
-  
+
   content = templatefile("${path.module}/aws-auth-template.yaml", {
-    node_instance_role_arn = var.create_node_groups ? aws_iam_role.eks_node_group[0].arn : ""
+    node_instance_role_arn   = var.create_node_groups ? aws_iam_role.eks_node_group[0].arn : ""
     terraform_admin_role_arn = var.github_actions_terraform_admin_role_arn
-    deploy_role_arn = var.github_actions_deploy_role_arn
+    deploy_role_arn          = var.github_actions_deploy_role_arn
   })
-  
+
   filename = "${path.module}/aws-auth-${var.environment}.yaml"
 }
 
 # Apply aws-auth ConfigMap and RBAC to EKS cluster via GitHub Actions
 resource "null_resource" "aws_auth" {
   count = var.github_actions_deploy_role_arn != "" ? 1 : 0
-  
+
   triggers = {
     cluster_name = aws_eks_cluster.main.id
     config_hash  = local_file.aws_auth[0].content_md5
