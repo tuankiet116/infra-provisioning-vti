@@ -4,7 +4,7 @@ data "aws_caller_identity" "current" {}
 # IAM Role for External Secrets Operator
 resource "aws_iam_role" "external_secrets" {
   name = "${var.vti_id}-external-secrets-role-${var.environment}"
-  
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -36,7 +36,7 @@ resource "aws_iam_role" "external_secrets" {
 resource "aws_iam_policy" "external_secrets" {
   name        = "${var.vti_id}-external-secrets-policy-${var.environment}"
   description = "Policy for External Secrets Operator to access AWS Secrets Manager"
-  
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -79,7 +79,7 @@ resource "aws_iam_role_policy_attachment" "external_secrets" {
 resource "aws_secretsmanager_secret" "backend_secrets" {
   name        = "${var.vti_id}-ecommerce-vti-backend-${var.environment}"
   description = "Backend application secrets for ${var.environment} environment"
-  
+
   recovery_window_in_days = 7
 
   tags = {
@@ -95,7 +95,7 @@ resource "aws_secretsmanager_secret" "backend_secrets" {
 resource "aws_secretsmanager_secret" "frontend_secrets" {
   name        = "${var.vti_id}-ecommerce-vti-frontend-${var.environment}"
   description = "Frontend application secrets for ${var.environment} environment"
-  
+
   recovery_window_in_days = 7
 
   tags = {
