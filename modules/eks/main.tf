@@ -196,7 +196,7 @@ resource "local_file" "apply_instructions" {
 # Run this from a GitHub Actions workflow with terraform_admin role
 
 # 1. Update kubeconfig
-aws eks update-kubeconfig --region ${data.aws_region.current.name} --name ${aws_eks_cluster.main.name}
+aws eks update-kubeconfig --region ${data.aws_region.current.name} --name ${aws_eks_cluster.main.id}
 
 # 2. Apply aws-auth ConfigMap
 kubectl apply -f ${local_file.aws_auth[0].filename}
