@@ -1,0 +1,117 @@
+name: Destroy and Recreate EKS Environments
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_destroy:
+        description: 'Type "DESTROY" to confirm'
+        required: true
+        type: string
+      environment:
+        description: 'Environment to destroy and recreate'
+        required: true
+        type: choice
+        options:
+        - dev
+        - prod
+        - both
+
+jobs:
+  destroy-and-recreate:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment == 'both' && 'prod' || github.event.inputs.environment }}
+    
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+    - name: Validate confirmation
+      run: |
+        if [ "${{ github.event.inputs.confirm_destroy }}" != "DESTROY" ]; then
+          echo "ERROR: Must type 'DESTROY' to confirm"
+          exit 1
+        fi
+        echo "Confirmation validated"
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::234139188789:role/DE000079-${{ github.event.inputs.environment == 'both' && 'prod' || github.event.inputs.environment }}-terraform-admin
+        aws-region: ap-southeast-2
+        role-session-name: GitHubActions-DestroyRecreate
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.12.2
+
+    # Destroy DEV if selected
+    - name: Destroy DEV Environment
+      if: github.event.inputs.environment == 'dev' || github.event.inputs.environment == 'both'
+      working-directory: environments/dev
+      run: |
+        echo "=== Destroying DEV Environment ==="
+        terraform init
+        terraform destroy -auto-approve
+        echo "DEV Environment destroyed successfully"
+
+    # Destroy PROD if selected  
+    - name: Destroy PROD Environment
+      if: github.event.inputs.environment == 'prod' || github.event.inputs.environment == 'both'
+      working-directory: environments/prod
+      run: |
+        echo "=== Destroying PROD Environment ==="
+        terraform init
+        terraform destroy -auto-approve
+        echo "PROD Environment destroyed successfully"
+
+    # Switch to DEV credentials for DEV recreation
+    - name: Configure AWS credentials for DEV
+      if: github.event.inputs.environment == 'dev' || github.event.inputs.environment == 'both'
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::234139188789:role/DE000079-dev-terraform-admin
+        aws-region: ap-southeast-2
+        role-session-name: GitHubActions-RecreateDev
+
+    # Recreate DEV if selected
+    - name: Recreate DEV Environment
+      if: github.event.inputs.environment == 'dev' || github.event.inputs.environment == 'both'
+      working-directory: environments/dev
+      run: |
+        echo "=== Recreating DEV Environment ==="
+        terraform init
+        terraform plan
+        terraform apply -auto-approve
+        echo "DEV Environment recreated successfully"
+
+    # Switch back to PROD credentials for PROD recreation
+    - name: Configure AWS credentials for PROD
+      if: github.event.inputs.environment == 'prod' || github.event.inputs.environment == 'both'
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::234139188789:role/DE000079-prod-terraform-admin
+        aws-region: ap-southeast-2
+        role-session-name: GitHubActions-RecreateProd
+
+    # Recreate PROD if selected
+    - name: Recreate PROD Environment
+      if: github.event.inputs.environment == 'prod' || github.event.inputs.environment == 'both'
+      working-directory: environments/prod
+      run: |
+        echo "=== Recreating PROD Environment ==="
+        terraform init
+        terraform plan
+        terraform apply -auto-approve
+        echo "PROD Environment recreated successfully"
+
+    - name: Summary
+      run: |
+        echo "=== Destroy and Recreate Completed ==="
+        echo "Environment(s): ${{ github.event.inputs.environment }}"
+        echo "All EKS clusters have been recreated with bootstrap_cluster_creator_admin_permissions"
+        echo "aws-auth ConfigMaps should now work properly"
