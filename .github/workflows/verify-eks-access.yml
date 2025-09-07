@@ -1,6 +1,8 @@
 name: Verify EKS Access
 
 on:
+  push:
+    branches: [ master ]
   workflow_dispatch:
     inputs:
       environment:
@@ -15,7 +17,11 @@ on:
 jobs:
   verify-eks-access:
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment }}
+    environment: ${{ github.event.inputs.environment || 'prod' }}
+    
+    permissions:
+      id-token: write
+      contents: read
     
     steps:
     - name: Checkout code
@@ -24,7 +30,7 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::234139188789:role/DE000079-${{ github.event.inputs.environment }}-terraform-admin
+        role-to-assume: arn:aws:iam::234139188789:role/DE000079-${{ github.event.inputs.environment || 'prod' }}-terraform-admin
         aws-region: ap-southeast-2
         role-session-name: GitHubActions-VerifyEKSAccess
 
@@ -34,11 +40,11 @@ jobs:
         terraform_version: 1.12.2
 
     - name: Initialize Terraform
-      working-directory: environments/${{ github.event.inputs.environment }}
+      working-directory: environments/${{ github.event.inputs.environment || 'prod' }}
       run: terraform init
 
     - name: Check Terraform State for aws-auth
-      working-directory: environments/${{ github.event.inputs.environment }}
+      working-directory: environments/${{ github.event.inputs.environment || 'prod' }}
       run: |
         echo "=== Checking terraform state for aws-auth resources ==="
         terraform state list | grep aws_auth || echo "No aws-auth resources found in terraform state"
@@ -54,7 +60,7 @@ jobs:
     - name: Update kubeconfig and verify aws-auth ConfigMap
       run: |
         echo "=== Updating kubeconfig ==="
-        aws eks update-kubeconfig --region ap-southeast-2 --name DE000079-eks-${{ github.event.inputs.environment }}
+        aws eks update-kubeconfig --region ap-southeast-2 --name DE000079-eks-${{ github.event.inputs.environment || 'prod' }}
         
         echo "=== Checking kubectl connection ==="
         kubectl auth can-i get configmaps -n kube-system || echo "Cannot access configmaps"
@@ -68,4 +74,4 @@ jobs:
     - name: Check EKS cluster info
       run: |
         echo "=== EKS cluster info ==="
-        aws eks describe-cluster --name DE000079-eks-${{ github.event.inputs.environment }} --region ap-southeast-2 --query 'cluster.{Name:name,Status:status,Version:version,Endpoint:endpoint}'
+        aws eks describe-cluster --name DE000079-eks-${{ github.event.inputs.environment || 'prod' }} --region ap-southeast-2 --query 'cluster.{Name:name,Status:status,Version:version,Endpoint:endpoint}'
