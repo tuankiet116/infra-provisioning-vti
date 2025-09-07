@@ -109,6 +109,12 @@ resource "aws_eks_cluster" "main" {
   # Enable logging
   enabled_cluster_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
 
+  # Enable cluster creator admin permissions (bootstrap)
+  access_config {
+    authentication_mode                         = "CONFIG_MAP"
+    bootstrap_cluster_creator_admin_permissions = true
+  }
+
   depends_on = [
     aws_iam_role_policy_attachment.eks_cluster_policy,
   ]
