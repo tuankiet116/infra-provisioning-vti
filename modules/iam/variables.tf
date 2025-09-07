@@ -27,3 +27,14 @@ variable "additional_trusted_repos" {
   description = "Danh sách các repos khác được trust bởi IAM role"
   default     = []
 }
+
+# Thêm biến cho OIDC provider từ EKS
+variable "eks_oidc_provider_arn" {
+  type        = string
+  description = "ARN of the EKS OIDC provider"
+}
+
+variable "eks_oidc_provider_url" {
+  type        = string
+  description = "URL of the EKS OIDC provider"
+}
