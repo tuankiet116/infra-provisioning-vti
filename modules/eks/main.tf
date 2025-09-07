@@ -1,25 +1,3 @@
-# Required providers
-terraform {
-  required_providers {
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = ">= 2.20"
-    }
-  }
-}
-
-# Configure Kubernetes provider
-provider "kubernetes" {
-  host                   = aws_eks_cluster.main.endpoint
-  cluster_ca_certificate = base64decode(aws_eks_cluster.main.certificate_authority[0].data)
-  
-  exec {
-    api_version = "client.authentication.k8s.io/v1beta1"
-    command     = "aws"
-    args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.main.name, "--region", data.aws_region.current.name]
-  }
-}
-
 # Data sources
 data "aws_caller_identity" "current" {}
 data "aws_partition" "current" {}
@@ -196,125 +174,44 @@ resource "aws_iam_openid_connect_provider" "eks" {
 # Data source to get current AWS region
 data "aws_region" "current" {}
 
-# Kubernetes provider configuration
-data "aws_eks_cluster" "cluster" {
-  name = aws_eks_cluster.main.name
-}
-
-data "aws_eks_cluster_auth" "cluster" {
-  name = aws_eks_cluster.main.name
-}
-
-# Create aws-auth ConfigMap using kubernetes provider instead of kubectl
-resource "kubernetes_config_map_v1" "aws_auth" {
+# Create aws-auth ConfigMap file for EKS cluster
+resource "local_file" "aws_auth" {
   count = var.github_actions_deploy_role_arn != "" ? 1 : 0
   
-  metadata {
-    name      = "aws-auth"
-    namespace = "kube-system"
-  }
-
-  data = {
-    mapRoles = yamlencode(concat(
-      var.create_node_groups ? [{
-        rolearn  = aws_iam_role.eks_node_group[0].arn
-        username = "system:node:{{EC2PrivateDNSName}}"
-        groups   = ["system:bootstrappers", "system:nodes"]
-      }] : [],
-      var.github_actions_terraform_admin_role_arn != "" ? [{
-        rolearn  = var.github_actions_terraform_admin_role_arn
-        username = "github-actions-terraform-admin"
-        groups   = ["system:masters"]
-      }] : [],
-      var.github_actions_deploy_role_arn != "" ? [{
-        rolearn  = var.github_actions_deploy_role_arn
-        username = "github-actions-deploy"
-        groups   = ["system:authenticated"]
-      }] : []
-    ))
-  }
-
-  depends_on = [aws_eks_cluster.main]
+  content = templatefile("${path.module}/aws-auth-template.yaml", {
+    node_instance_role_arn = var.create_node_groups ? aws_iam_role.eks_node_group[0].arn : ""
+    terraform_admin_role_arn = var.github_actions_terraform_admin_role_arn
+    deploy_role_arn = var.github_actions_deploy_role_arn
+  })
+  
+  filename = "${path.module}/aws-auth-${var.environment}.yaml"
 }
 
-# Create ClusterRole for GitHub Actions deploy
-resource "kubernetes_cluster_role_v1" "github_actions_deploy" {
+# Output instructions for applying aws-auth ConfigMap
+resource "local_file" "apply_instructions" {
   count = var.github_actions_deploy_role_arn != "" ? 1 : 0
   
-  metadata {
-    name = "github-actions-deploy"
-  }
+  content = <<-EOT
+# Instructions to apply aws-auth ConfigMap to EKS cluster
+# Run this from a GitHub Actions workflow with terraform_admin role
 
-  rule {
-    api_groups = [""]
-    resources  = ["pods", "pods/log", "pods/status"]
-    verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
-  }
+# 1. Update kubeconfig
+aws eks update-kubeconfig --region ${data.aws_region.current.name} --name ${aws_eks_cluster.main.name}
 
-  rule {
-    api_groups = [""]
-    resources  = ["services", "endpoints"]
-    verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
-  }
+# 2. Apply aws-auth ConfigMap
+kubectl apply -f ${local_file.aws_auth[0].filename}
 
-  rule {
-    api_groups = [""]
-    resources  = ["configmaps", "secrets"]
-    verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
-  }
+# 3. Apply GitHub Actions RBAC
+kubectl apply -f ${path.module}/github-actions-rbac.yaml
 
-  rule {
-    api_groups = ["apps"]
-    resources  = ["deployments", "replicasets", "daemonsets", "statefulsets"]
-    verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
-  }
+# 4. Verify setup
+kubectl get configmap aws-auth -n kube-system -o yaml
+kubectl get clusterrole github-actions-deploy
+kubectl get clusterrolebinding github-actions-deploy
 
-  rule {
-    api_groups = ["networking.k8s.io"]
-    resources  = ["ingresses"]
-    verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
-  }
-
-  rule {
-    api_groups = [""]
-    resources  = ["namespaces"]
-    verbs      = ["get", "list", "watch"]
-  }
-
-  rule {
-    api_groups = [""]
-    resources  = ["events"]
-    verbs      = ["get", "list", "watch"]
-  }
-
-  rule {
-    api_groups = ["autoscaling"]
-    resources  = ["horizontalpodautoscalers"]
-    verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
-  }
-
-  depends_on = [kubernetes_config_map_v1.aws_auth]
-}
-
-# Create ClusterRoleBinding for GitHub Actions deploy
-resource "kubernetes_cluster_role_binding_v1" "github_actions_deploy" {
-  count = var.github_actions_deploy_role_arn != "" ? 1 : 0
+# After this, application team can use role:
+# ${var.github_actions_deploy_role_arn}
+EOT
   
-  metadata {
-    name = "github-actions-deploy"
-  }
-
-  role_ref {
-    api_group = "rbac.authorization.k8s.io"
-    kind      = "ClusterRole"
-    name      = kubernetes_cluster_role_v1.github_actions_deploy[0].metadata[0].name
-  }
-
-  subject {
-    kind      = "User"
-    name      = "github-actions-deploy"
-    api_group = "rbac.authorization.k8s.io"
-  }
-
-  depends_on = [kubernetes_cluster_role_v1.github_actions_deploy]
+  filename = "${path.module}/apply-aws-auth-${var.environment}.sh"
 }

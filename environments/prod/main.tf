@@ -19,8 +19,6 @@ module "eks" {
   # GitHub Actions roles for EKS access
   github_actions_terraform_admin_role_arn = module.iam.terraform_admin_role_arn
   github_actions_deploy_role_arn          = module.iam.github_actions_deploy_role_arn
-
-  depends_on = [module.networking]
 }
 
 module "iam" {
