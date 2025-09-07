@@ -30,3 +30,15 @@ variable "create_node_groups" {
   description = "Whether to create EKS managed node groups"
   default     = true
 }
+
+variable "github_actions_terraform_admin_role_arn" {
+  type        = string
+  description = "ARN of the GitHub Actions Terraform Admin role"
+  default     = ""
+}
+
+variable "github_actions_deploy_role_arn" {
+  type        = string
+  description = "ARN of the GitHub Actions Deploy role"
+  default     = ""
+}

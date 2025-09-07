@@ -170,3 +170,46 @@ resource "aws_iam_openid_connect_provider" "eks" {
     Terraform   = "true"
   }
 }
+
+# Data source to get current AWS region
+data "aws_region" "current" {}
+
+# Create aws-auth ConfigMap to allow GitHub Actions roles access to EKS
+resource "local_file" "aws_auth" {
+  count = var.github_actions_deploy_role_arn != "" ? 1 : 0
+  
+  content = templatefile("${path.module}/aws-auth-template.yaml", {
+    node_instance_role_arn = var.create_node_groups ? aws_iam_role.eks_node_group[0].arn : ""
+    terraform_admin_role_arn = var.github_actions_terraform_admin_role_arn
+    deploy_role_arn = var.github_actions_deploy_role_arn
+  })
+  
+  filename = "${path.module}/aws-auth-${var.environment}.yaml"
+}
+
+# Apply aws-auth ConfigMap and RBAC to EKS cluster
+resource "null_resource" "aws_auth" {
+  count = var.github_actions_deploy_role_arn != "" ? 1 : 0
+  
+  triggers = {
+    cluster_name = aws_eks_cluster.main.name
+    config_hash  = local_file.aws_auth[0].content_md5
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      # Assume terraform admin role to get credentials for kubectl
+      CREDS=$(aws sts assume-role --role-arn ${var.github_actions_terraform_admin_role_arn} --role-session-name terraform-kubectl --output json)
+      export AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.Credentials.AccessKeyId')
+      export AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.Credentials.SecretAccessKey')
+      export AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.Credentials.SessionToken')
+      
+      # Update kubeconfig and apply aws-auth
+      aws eks update-kubeconfig --region ${data.aws_region.current.name} --name ${aws_eks_cluster.main.name}
+      kubectl apply -f ${local_file.aws_auth[0].filename} --validate=false
+      kubectl apply -f ${path.module}/github-actions-rbac.yaml --validate=false
+    EOT
+  }
+
+  depends_on = [aws_eks_cluster.main, local_file.aws_auth]
+}

@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aws-auth
+  namespace: kube-system
+data:
+  mapRoles: |
+%{ if node_instance_role_arn != "" ~}
+    - rolearn: ${node_instance_role_arn}
+      username: system:node:{{EC2PrivateDNSName}}
+      groups:
+        - system:bootstrappers
+        - system:nodes
+%{ endif ~}
+%{ if terraform_admin_role_arn != "" ~}
+    - rolearn: ${terraform_admin_role_arn}
+      username: github-actions-terraform-admin
+      groups:
+        - system:masters
+%{ endif ~}
+%{ if deploy_role_arn != "" ~}
+    - rolearn: ${deploy_role_arn}
+      username: github-actions-deploy
+      groups:
+        - system:authenticated
+%{ endif ~}
