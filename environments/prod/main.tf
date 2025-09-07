@@ -39,6 +39,7 @@ module "ecr" {
   source      = "../../modules/ecr"
   vti_id      = var.vti_id
   environment = var.environment
+  force_delete_ecr = var.force_delete_ecr
   read_write_arns = [
     module.iam.github_actions_deploy_role_arn,
     module.iam.terraform_admin_role_arn

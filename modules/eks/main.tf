@@ -198,14 +198,14 @@ resource "null_resource" "aws_auth" {
   count = var.github_actions_deploy_role_arn != "" ? 1 : 0
 
   triggers = {
-    cluster_name = aws_eks_cluster.main.id
+    cluster_name = aws_eks_cluster.main.name
     config_hash  = local_file.aws_auth[0].content_md5
   }
 
   provisioner "local-exec" {
     command = <<-EOT
       # Apply aws-auth ConfigMap using current credentials (terraform_admin role in GitHub Actions)
-      aws eks update-kubeconfig --region ${data.aws_region.current.name} --name ${aws_eks_cluster.main.id}
+      aws eks update-kubeconfig --region ${data.aws_region.current.name} --name ${aws_eks_cluster.main.name}
       kubectl apply -f ${local_file.aws_auth[0].filename} --validate=false
       kubectl apply -f ${path.module}/github-actions-rbac.yaml --validate=false
       

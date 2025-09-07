@@ -56,7 +56,24 @@ jobs:
       run: |
         echo "=== Destroying DEV Environment ==="
         terraform init
-        terraform destroy -auto-approve
+        
+        # Force delete ECR repositories first
+        echo "Cleaning up ECR repositories..."
+        aws ecr describe-repositories --region ap-southeast-2 --repository-names de000079-ecr-repo-dev --query 'repositories[0].repositoryUri' --output text || echo "ECR repo not found"
+        aws ecr batch-delete-image --region ap-southeast-2 --repository-name de000079-ecr-repo-dev --image-ids imageTag=latest || echo "No images to delete"
+        aws ecr list-images --region ap-southeast-2 --repository-name de000079-ecr-repo-dev --query 'imageIds[*]' --output json | \
+        aws ecr batch-delete-image --region ap-southeast-2 --repository-name de000079-ecr-repo-dev --image-ids file:///dev/stdin || echo "No images to delete"
+        
+        # Destroy with retries
+        terraform destroy -auto-approve -var="force_delete_ecr=true" || {
+          echo "First destroy attempt failed, retrying..."
+          sleep 30
+          terraform destroy -auto-approve -var="force_delete_ecr=true" || {
+            echo "Second destroy attempt failed, forcing state removal..."
+            terraform state list | grep -E "(ecr|node_group)" | xargs -I {} terraform state rm {} || true
+            terraform destroy -auto-approve -var="force_delete_ecr=true"
+          }
+        }
         echo "DEV Environment destroyed successfully"
 
     # Destroy PROD if selected  
@@ -66,7 +83,24 @@ jobs:
       run: |
         echo "=== Destroying PROD Environment ==="
         terraform init
-        terraform destroy -auto-approve
+        
+        # Force delete ECR repositories first
+        echo "Cleaning up ECR repositories..."
+        aws ecr describe-repositories --region ap-southeast-2 --repository-names de000079-ecr-repo-prod --query 'repositories[0].repositoryUri' --output text || echo "ECR repo not found"
+        aws ecr batch-delete-image --region ap-southeast-2 --repository-name de000079-ecr-repo-prod --image-ids imageTag=latest || echo "No images to delete"
+        aws ecr list-images --region ap-southeast-2 --repository-name de000079-ecr-repo-prod --query 'imageIds[*]' --output json | \
+        aws ecr batch-delete-image --region ap-southeast-2 --repository-name de000079-ecr-repo-prod --image-ids file:///dev/stdin || echo "No images to delete"
+        
+        # Destroy with retries
+        terraform destroy -auto-approve -var="force_delete_ecr=true" || {
+          echo "First destroy attempt failed, retrying..."
+          sleep 30
+          terraform destroy -auto-approve -var="force_delete_ecr=true" || {
+            echo "Second destroy attempt failed, forcing state removal..."
+            terraform state list | grep -E "(ecr|node_group)" | xargs -I {} terraform state rm {} || true
+            terraform destroy -auto-approve -var="force_delete_ecr=true"
+          }
+        }
         echo "PROD Environment destroyed successfully"
 
     # Switch to DEV credentials for DEV recreation

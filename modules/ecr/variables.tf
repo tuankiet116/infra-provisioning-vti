@@ -13,3 +13,9 @@ variable "read_write_arns" {
   type        = list(string)
   description = "Danh sách ARN được push/pull image"
 }
+
+variable "force_delete_ecr" {
+  description = "Force delete ECR repository even if it contains images"
+  type        = bool
+  default     = false
+}

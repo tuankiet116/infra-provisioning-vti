@@ -15,6 +15,12 @@ variable "create_node_groups" {
   default     = true
 }
 
+variable "force_delete_ecr" {
+  description = "Force delete ECR repository even if it contains images"
+  type        = bool
+  default     = false
+}
+
 variable "github_org" {
   type        = string
   description = "Github org or username"

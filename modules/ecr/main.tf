@@ -5,6 +5,7 @@ module "ecr" {
 
   repository_read_write_access_arns = var.read_write_arns
   repository_image_scan_on_push     = true
+  repository_force_delete           = var.force_delete_ecr
 
   repository_lifecycle_policy = jsonencode({
     rules = [
