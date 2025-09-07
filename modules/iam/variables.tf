@@ -38,3 +38,9 @@ variable "eks_oidc_provider_url" {
   type        = string
   description = "URL of the EKS OIDC provider"
 }
+
+# Namespace của ServiceAccount External Secrets Operator
+variable "external_secrets_namespace" {
+  type        = string
+  description = "Namespace của ServiceAccount External Secrets Operator"
+}

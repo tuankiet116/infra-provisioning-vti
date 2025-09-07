@@ -29,6 +29,7 @@ module "iam" {
   additional_trusted_repos = var.additional_trusted_repos
   eks_oidc_provider_arn    = module.eks.oidc_provider_arn
   eks_oidc_provider_url    = module.eks.oidc_provider_url
+  external_secrets_namespace = "ecommerce-vti-prod"
 }
 
 module "ecr" {

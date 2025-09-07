@@ -189,7 +189,7 @@ resource "aws_iam_role" "external_secrets_irsa" {
         Action = "sts:AssumeRoleWithWebIdentity"
         Condition = {
           StringEquals = {
-            "${replace(var.eks_oidc_provider_url, "https://", "")}:sub" = "system:serviceaccount:${var.environment}:external-secrets-sa"
+            "${replace(var.eks_oidc_provider_url, "https://", "")}:sub" = "system:serviceaccount:${var.external_secrets_namespace}:external-secrets-sa"
           }
         }
       }
