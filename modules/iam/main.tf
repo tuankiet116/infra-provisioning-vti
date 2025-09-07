@@ -80,6 +80,7 @@ resource "aws_iam_role_policy" "iam_limited_access" {
           "iam:CreatePolicy",
           "iam:DeletePolicy",
           "iam:GetPolicy",
+          "iam:GetPolicyVersion",
           "iam:PassRole",
           "iam:TagRole",
           "iam:UntagRole",
