@@ -3,8 +3,47 @@ data "aws_iam_openid_connect_provider" "github" {
   url = "https://token.actions.githubusercontent.com"
 }
 
-resource "aws_iam_role" "github_actions" {
-  name = "${var.vti_id}-${var.environment}-github-actions"
+# ===== INFRASTRUCTURE ADMIN ROLE =====
+# Role có quyền cao để quản lý IAM và infrastructure
+resource "aws_iam_role" "terraform_admin" {
+  name = "${var.vti_id}-${var.environment}-terraform-admin"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Federated = data.aws_iam_openid_connect_provider.github.arn
+        }
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Condition = {
+          StringEquals = {
+            "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+          }
+          StringLike = {
+            "token.actions.githubusercontent.com:sub" = concat(
+              ["repo:${var.github_org}/${var.github_repo}:ref:refs/heads/master"],
+              ["repo:${var.github_org}/${var.github_repo}:ref:refs/heads/main"]
+            )
+          }
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Name        = "${var.vti_id}-${var.environment}-terraform-admin"
+    Environment = var.environment
+    ManagedBy   = "terraform"
+    Purpose     = "infrastructure-management"
+  }
+}
+
+# ===== APPLICATION DEPLOY ROLE =====
+# Role chỉ có quyền deploy ứng dụng (ECR, EKS deployment)
+resource "aws_iam_role" "github_actions_deploy" {
+  name = "${var.vti_id}-${var.environment}-github-actions-deploy"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -31,37 +70,76 @@ resource "aws_iam_role" "github_actions" {
   })
 
   tags = {
-    Name        = "${var.vti_id}-${var.environment}-github-actions"
+    Name        = "${var.vti_id}-${var.environment}-github-actions-deploy"
     Environment = var.environment
     ManagedBy   = "terraform"
-    Purpose     = "github-actions-ecr-access"
+    Purpose     = "application-deployment"
   }
 }
 
-# Gán quyền cho ECR + EKS
-resource "aws_iam_role_policy_attachment" "ecr_poweruser" {
-  role       = aws_iam_role.github_actions.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
+# ===== TERRAFORM ADMIN ROLE PERMISSIONS =====
+# IAM permissions for infrastructure management
+resource "aws_iam_role_policy_attachment" "terraform_admin_iam" {
+  role       = aws_iam_role.terraform_admin.name
+  policy_arn = "arn:aws:iam::aws:policy/IAMFullAccess"
 }
 
-resource "aws_iam_role_policy_attachment" "eks_fullaccess" {
-  role       = aws_iam_role.github_actions.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
-}
-
-# Additional AWS permissions for Terraform operations
-resource "aws_iam_role_policy_attachment" "ec2_readonly" {
-  role       = aws_iam_role.github_actions.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"
-}
-
-resource "aws_iam_role_policy_attachment" "vpc_fullaccess" {
-  role       = aws_iam_role.github_actions.name
+# VPC permissions for infrastructure management
+resource "aws_iam_role_policy_attachment" "terraform_admin_vpc" {
+  role       = aws_iam_role.terraform_admin.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonVPCFullAccess"
 }
 
-resource "aws_iam_role_policy_attachment" "cloudwatch_readonly" {
-  role       = aws_iam_role.github_actions.name
+# EKS permissions for infrastructure management  
+resource "aws_iam_role_policy_attachment" "terraform_admin_eks" {
+  role       = aws_iam_role.terraform_admin.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+}
+
+# EC2 permissions for infrastructure management
+resource "aws_iam_role_policy_attachment" "terraform_admin_ec2" {
+  role       = aws_iam_role.terraform_admin.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
+}
+
+# CloudWatch permissions for infrastructure management
+resource "aws_iam_role_policy_attachment" "terraform_admin_cloudwatch" {
+  role       = aws_iam_role.terraform_admin.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchFullAccess"
+}
+
+# ===== APPLICATION DEPLOY ROLE PERMISSIONS =====
+# ECR permissions for application deployment
+resource "aws_iam_role_policy_attachment" "deploy_ecr_poweruser" {
+  role       = aws_iam_role.github_actions_deploy.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
+}
+
+# EKS deployment permissions (limited)
+resource "aws_iam_role_policy" "deploy_eks_limited" {
+  name = "${var.vti_id}-${var.environment}-deploy-eks-limited"
+  role = aws_iam_role.github_actions_deploy.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "eks:DescribeCluster",
+          "eks:ListClusters",
+          "eks:DescribeNodegroup",
+          "eks:ListNodegroups"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# CloudWatch readonly for monitoring
+resource "aws_iam_role_policy_attachment" "deploy_cloudwatch_readonly" {
+  role       = aws_iam_role.github_actions_deploy.name
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess"
 }
 
@@ -106,10 +184,11 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_readonly" {
 #   })
 # }
 
-# Custom policy for IAM and additional EKS permissions
-resource "aws_iam_role_policy" "terraform_operations" {
-  name = "${var.vti_id}-${var.environment}-terraform-operations"
-  role = aws_iam_role.github_actions.id
+# ===== TERRAFORM ADMIN ROLE ADDITIONAL PERMISSIONS =====
+# Custom policy for advanced Terraform operations
+resource "aws_iam_role_policy" "terraform_admin_operations" {
+  name = "${var.vti_id}-${var.environment}-terraform-admin-operations"
+  role = aws_iam_role.terraform_admin.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -153,10 +232,10 @@ resource "aws_iam_role_policy" "terraform_operations" {
   })
 }
 
-# S3 policy cho Terraform state access
-resource "aws_iam_role_policy" "terraform_state_access" {
-  name = "${var.vti_id}-${var.environment}-terraform-state-access"
-  role = aws_iam_role.github_actions.id
+# S3 policy cho Terraform state access (admin role)
+resource "aws_iam_role_policy" "terraform_admin_state_access" {
+  name = "${var.vti_id}-${var.environment}-terraform-admin-state-access"
+  role = aws_iam_role.terraform_admin.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -178,7 +257,7 @@ resource "aws_iam_role_policy" "terraform_state_access" {
   })
 }
 
-# === IRSA for External Secrets Operator ===
+# ===== EXTERNAL SECRETS IRSA ROLE =====
 resource "aws_iam_role" "external_secrets_irsa" {
   name = "${var.vti_id}-${var.environment}-external-secrets-irsa"
 

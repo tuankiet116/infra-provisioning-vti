@@ -15,7 +15,7 @@ on:
       - '.github/workflows/terraform-plan-apply.yml'
 
 env:
-  TF_VERSION: '1.13.1'
+  TF_VERSION: '1.12.2'
   AWS_REGION: 'ap-southeast-2'
 
 permissions:
@@ -67,12 +67,12 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (Terraform Admin)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN_DEV }}
+          role-to-assume: ${{ secrets.TERRAFORM_ADMIN_ROLE_ARN_DEV }}
           aws-region: ${{ env.AWS_REGION }}
-          role-session-name: GitHubActions-TerraformDev
+          role-session-name: GitHubActions-TerraformAdminDev
 
       - name: Terraform Format Check
         run: terraform fmt -check
@@ -140,12 +140,12 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (Terraform Admin)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN_PROD }}
+          role-to-assume: ${{ secrets.TERRAFORM_ADMIN_ROLE_ARN_PROD }}
           aws-region: ${{ env.AWS_REGION }}
-          role-session-name: GitHubActions-TerraformProd
+          role-session-name: GitHubActions-TerraformAdminProd
 
       - name: Terraform Format Check
         run: terraform fmt -check
@@ -213,12 +213,12 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (Terraform Admin)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN_DEV }}
+          role-to-assume: ${{ secrets.TERRAFORM_ADMIN_ROLE_ARN_DEV }}
           aws-region: ${{ env.AWS_REGION }}
-          role-session-name: GitHubActions-TerraformDevApply
+          role-session-name: GitHubActions-TerraformAdminDevApply
 
       - name: Terraform Init
         run: terraform init
@@ -248,12 +248,12 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (Terraform Admin)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN_PROD }}
+          role-to-assume: ${{ secrets.TERRAFORM_ADMIN_ROLE_ARN_PROD }}
           aws-region: ${{ env.AWS_REGION }}
-          role-session-name: GitHubActions-TerraformProdApply
+          role-session-name: GitHubActions-TerraformAdminProdApply
 
       - name: Terraform Init
         run: terraform init

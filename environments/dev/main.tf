@@ -37,7 +37,8 @@ module "ecr" {
   vti_id      = var.vti_id
   environment = var.environment
   read_write_arns = [
-    module.iam.github_actions_role_arn
+    module.iam.github_actions_deploy_role_arn,
+    module.iam.terraform_admin_role_arn
   ]
 }
 
