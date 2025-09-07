@@ -198,13 +198,7 @@ resource "null_resource" "aws_auth" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      # Assume terraform admin role to get credentials for kubectl
-      CREDS=$(aws sts assume-role --role-arn ${var.github_actions_terraform_admin_role_arn} --role-session-name terraform-kubectl --output json)
-      export AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.Credentials.AccessKeyId')
-      export AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.Credentials.SecretAccessKey')
-      export AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.Credentials.SessionToken')
-      
-      # Update kubeconfig and apply aws-auth
+      # Use current AWS credentials (already assumed terraform admin role via GitHub Actions)
       aws eks update-kubeconfig --region ${data.aws_region.current.name} --name ${aws_eks_cluster.main.name}
       kubectl apply -f ${local_file.aws_auth[0].filename} --validate=false
       kubectl apply -f ${path.module}/github-actions-rbac.yaml --validate=false
