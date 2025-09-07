@@ -20,17 +20,17 @@ module "eks" {
 }
 
 module "iam" {
-  source                     = "../../modules/iam"
-  vti_id                     = var.vti_id
-  environment                = var.environment
-  account_id                 = data.aws_caller_identity.current.account_id
-  github_org                 = var.github_org
-  github_repo                = var.github_repo
-  additional_trusted_repos   = var.additional_trusted_repos
+  source                      = "../../modules/iam"
+  vti_id                      = var.vti_id
+  environment                 = var.environment
+  account_id                  = data.aws_caller_identity.current.account_id
+  github_org                  = var.github_org
+  github_repo                 = var.github_repo
+  additional_trusted_repos    = var.additional_trusted_repos
   additional_trusted_branches = var.additional_trusted_branches
-  eks_oidc_provider_arn      = module.eks.oidc_provider_arn
-  eks_oidc_provider_url      = module.eks.oidc_provider_url
-  external_secrets_namespace = "ecommerce-vti-prod"
+  eks_oidc_provider_arn       = module.eks.oidc_provider_arn
+  eks_oidc_provider_url       = module.eks.oidc_provider_url
+  external_secrets_namespace  = "ecommerce-vti-prod"
 }
 
 module "ecr" {

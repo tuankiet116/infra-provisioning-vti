@@ -53,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: detect-changes
     if: needs.detect-changes.outputs.dev-changed == 'true'
-    # environment: dev  # TEMPORARILY DISABLE ENVIRONMENT
+    environment: dev
     defaults:
       run:
         working-directory: ./environments/dev
@@ -66,17 +66,6 @@ jobs:
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: ${{ env.TF_VERSION }}
-
-      - name: Debug vs Test Workflow
-        run: |
-          echo "=== MAIN WORKFLOW CONTEXT ==="
-          echo "Repository: ${{ github.repository }}"
-          echo "Ref: ${{ github.ref }}"
-          echo "Actor: ${{ github.actor }}"
-          echo "Event: ${{ github.event_name }}"
-          echo "Role ARN: ${{ secrets.TERRAFORM_ADMIN_ROLE_ARN_DEV }}"
-          echo "Job: terraform-plan-dev"
-          echo "Environment: DISABLED"
 
       - name: Configure AWS credentials (Terraform Admin)
         uses: aws-actions/configure-aws-credentials@v4
