@@ -1,0 +1,36 @@
+name: Test OIDC Authentication
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/test-oidc.yml'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  test-auth:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug Context
+        run: |
+          echo "Repository: ${{ github.repository }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "Event: ${{ github.event_name }}"
+          echo "Role ARN: ${{ secrets.TERRAFORM_ADMIN_ROLE_ARN_DEV }}"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.TERRAFORM_ADMIN_ROLE_ARN_DEV }}
+          aws-region: ap-southeast-2
+          role-session-name: GitHubActions-Test
+
+      - name: Test AWS Access
+        run: |
+          aws sts get-caller-identity
+          echo "✅ Successfully authenticated!"
