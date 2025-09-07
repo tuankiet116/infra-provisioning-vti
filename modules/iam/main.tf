@@ -79,6 +79,7 @@ resource "aws_iam_role_policy" "iam_limited_access" {
           "iam:DetachRolePolicy",
           "iam:CreatePolicy",
           "iam:DeletePolicy",
+          "iam:GetPolicy",
           "iam:PassRole",
           "iam:TagRole",
           "iam:UntagRole",
@@ -116,6 +117,7 @@ resource "aws_iam_role_policy" "terraform_operations" {
           "iam:UntagOpenIDConnectProvider",
           "iam:GetRole",
           "iam:GetRolePolicy",
+          "iam:GetPolicy",
           "iam:ListAttachedRolePolicies",
           "iam:ListRolePolicies",
           "eks:*",
@@ -132,7 +134,10 @@ resource "aws_iam_role_policy" "terraform_operations" {
           "secretsmanager:UpdateSecret",
           "secretsmanager:TagResource",
           "secretsmanager:UntagResource",
-          "secretsmanager:ListSecrets"
+          "secretsmanager:ListSecrets",
+          "secretsmanager:GetResourcePolicy",
+          "secretsmanager:PutResourcePolicy",
+          "secretsmanager:DeleteResourcePolicy"
         ]
         Resource = "*"
       }
