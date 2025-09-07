@@ -30,3 +30,9 @@ variable "additional_trusted_repos" {
   description = "Additional repositories trusted by IAM role"
   default     = []
 }
+
+variable "additional_trusted_branches" {
+  type        = list(string)
+  description = "Additional branches trusted by IAM role (besides main/master)"
+  default     = []
+}

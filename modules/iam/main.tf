@@ -26,7 +26,9 @@ resource "aws_iam_role" "terraform_admin" {
               ["repo:${var.github_org}/${var.github_repo}:ref:refs/heads/master"],
               ["repo:${var.github_org}/${var.github_repo}:ref:refs/heads/main"],
               [for repo in var.additional_trusted_repos : "repo:${var.github_org}/${repo}:ref:refs/heads/master"],
-              [for repo in var.additional_trusted_repos : "repo:${var.github_org}/${repo}:ref:refs/heads/main"]
+              [for repo in var.additional_trusted_repos : "repo:${var.github_org}/${repo}:ref:refs/heads/main"],
+              [for repo in var.additional_trusted_repos : "repo:${var.github_org}/${repo}:ref:refs/heads/master-dev"],
+              [for branch in var.additional_trusted_branches : "repo:${var.github_org}/${var.github_repo}:ref:refs/heads/${branch}"]
             )
           }
         }

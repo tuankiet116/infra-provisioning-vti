@@ -28,6 +28,12 @@ variable "additional_trusted_repos" {
   default     = []
 }
 
+variable "additional_trusted_branches" {
+  type        = list(string)
+  description = "Danh sách các branches khác được trust bởi IAM role (ngoài main/master)"
+  default     = []
+}
+
 # Thêm biến cho OIDC provider từ EKS
 variable "eks_oidc_provider_arn" {
   type        = string

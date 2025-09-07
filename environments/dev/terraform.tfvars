@@ -4,3 +4,4 @@ create_node_groups       = true
 github_org               = "tuankiet116"
 github_repo              = "ecommerce-vti"
 additional_trusted_repos = ["infra-provisioning-vti"]
+additional_trusted_branches = ["master-dev"]

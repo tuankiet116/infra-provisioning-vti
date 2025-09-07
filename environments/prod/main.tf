@@ -27,6 +27,7 @@ module "iam" {
   github_org                 = var.github_org
   github_repo                = var.github_repo
   additional_trusted_repos   = var.additional_trusted_repos
+  additional_trusted_branches = var.additional_trusted_branches
   eks_oidc_provider_arn      = module.eks.oidc_provider_arn
   eks_oidc_provider_url      = module.eks.oidc_provider_url
   external_secrets_namespace = "ecommerce-vti-prod"
